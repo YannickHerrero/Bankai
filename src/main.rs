@@ -1,4 +1,5 @@
 mod app;
+mod auth;
 mod ui;
 
 use std::time::Duration;
