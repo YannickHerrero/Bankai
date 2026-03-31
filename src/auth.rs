@@ -20,6 +20,6 @@ pub fn build_auth_url() -> Result<String, AuthError> {
         std::env::var("BANKAI_CLIENT_ID").map_err(|_| AuthError::MissingEnv("BANKAI_CLIENT_ID"))?;
 
     Ok(format!(
-        "{AUTH_URL}?client_id={client_id}&response_type=token"
+        "{AUTH_URL}?client_id={client_id}&response_type=token&redirect_uri=https://anilist.co/api/v2/oauth/pin"
     ))
 }
