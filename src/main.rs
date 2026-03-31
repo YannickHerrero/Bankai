@@ -6,7 +6,7 @@ mod ui;
 
 use std::time::Duration;
 
-use app::{App, AppScreen};
+use app::{App, AppScreen, LoginState};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use tokio::sync::mpsc;
 
@@ -61,7 +61,6 @@ async fn main() {
                     app.status_message = None;
                 }
                 AppMessage::AuthError(err) => {
-                    app.screen = AppScreen::Login;
                     app.loading = false;
                     app.status_message = Some(err);
                 }
@@ -73,6 +72,7 @@ async fn main() {
                     app.token = None;
                     app.loading = false;
                     app.screen = AppScreen::Login;
+                    app.login_state = LoginState::Prompt;
                     app.status_message = Some(format!("Session expired: {err}"));
 
                     let _ = token::save_config(&token::Config {
@@ -88,53 +88,74 @@ async fn main() {
                     continue;
                 }
 
-                match key.code {
-                    KeyCode::Char('q') => app.quit(),
-                    KeyCode::Enter => {
-                        if matches!(app.screen, AppScreen::Login) && !app.loading {
-                            let tx = tx.clone();
-                            app.loading = true;
-                            app.status_message = Some("Opening browser...".into());
-
-                            tokio::spawn(async move {
-                                let oauth_config = match auth::OAuthConfig::from_env() {
-                                    Ok(c) => c,
-                                    Err(e) => {
-                                        let _ = tx.send(AppMessage::AuthError(e.to_string()));
-                                        return;
-                                    }
-                                };
-
-                                let token_response = match auth::authenticate(&oauth_config).await
-                                {
-                                    Ok(t) => t,
-                                    Err(e) => {
-                                        let _ = tx.send(AppMessage::AuthError(e.to_string()));
-                                        return;
-                                    }
-                                };
-
-                                let _ = token::save_config(&token::Config {
-                                    access_token: Some(token_response.access_token.clone()),
-                                });
-
-                                let client =
-                                    api::AniListClient::new(token_response.access_token.clone());
-                                match client.get_viewer().await {
-                                    Ok(viewer) => {
-                                        let _ = tx.send(AppMessage::AuthSuccess {
-                                            token: token_response.access_token,
-                                            username: viewer.name,
-                                        });
-                                    }
-                                    Err(e) => {
-                                        let _ = tx.send(AppMessage::AuthError(e.to_string()));
-                                    }
-                                }
-                            });
+                match (&app.screen, &app.login_state) {
+                    (AppScreen::Login, LoginState::Prompt) => match key.code {
+                        KeyCode::Char('q') => app.quit(),
+                        KeyCode::Enter => match auth::build_auth_url() {
+                            Ok(url) => {
+                                app.login_state = LoginState::WaitingForToken { auth_url: url };
+                                app.status_message = None;
+                            }
+                            Err(e) => {
+                                app.status_message = Some(e.to_string());
+                            }
+                        },
+                        _ => {}
+                    },
+                    (AppScreen::Login, LoginState::WaitingForToken { .. }) => match key.code {
+                        KeyCode::Char(c) => {
+                            app.token_input.push(c);
                         }
-                    }
-                    _ => {}
+                        KeyCode::Backspace => {
+                            app.token_input.pop();
+                        }
+                        KeyCode::Esc => {
+                            app.login_state = LoginState::Prompt;
+                            app.token_input.clear();
+                            app.status_message = None;
+                        }
+                        KeyCode::Enter => {
+                            let token = app.token_input.trim().to_string();
+                            if token.is_empty() {
+                                app.status_message = Some("Token cannot be empty".into());
+                            } else {
+                                app.loading = true;
+                                app.status_message = Some("Verifying token...".into());
+                                app.token_input.clear();
+
+                                let tx = tx.clone();
+                                let token_clone = token.clone();
+                                tokio::spawn(async move {
+                                    let _ = token::save_config(&token::Config {
+                                        access_token: Some(token_clone.clone()),
+                                    });
+
+                                    let client = api::AniListClient::new(token_clone.clone());
+                                    match client.get_viewer().await {
+                                        Ok(viewer) => {
+                                            let _ = tx.send(AppMessage::AuthSuccess {
+                                                token: token_clone,
+                                                username: viewer.name,
+                                            });
+                                        }
+                                        Err(e) => {
+                                            let _ = token::save_config(&token::Config {
+                                                access_token: None,
+                                            });
+                                            let _ = tx.send(AppMessage::AuthError(format!(
+                                                "Invalid token: {e}"
+                                            )));
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                        _ => {}
+                    },
+                    (AppScreen::Dashboard, _) => match key.code {
+                        KeyCode::Char('q') => app.quit(),
+                        _ => {}
+                    },
                 }
             }
         }

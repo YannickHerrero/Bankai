@@ -3,6 +3,11 @@ pub enum AppScreen {
     Dashboard,
 }
 
+pub enum LoginState {
+    Prompt,
+    WaitingForToken { auth_url: String },
+}
+
 pub struct App {
     pub screen: AppScreen,
     pub running: bool,
@@ -10,6 +15,8 @@ pub struct App {
     pub token: Option<String>,
     pub status_message: Option<String>,
     pub loading: bool,
+    pub login_state: LoginState,
+    pub token_input: String,
 }
 
 impl App {
@@ -21,6 +28,8 @@ impl App {
             token: None,
             status_message: None,
             loading: false,
+            login_state: LoginState::Prompt,
+            token_input: String::new(),
         }
     }
 
