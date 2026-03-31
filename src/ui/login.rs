@@ -57,24 +57,33 @@ fn render_prompt(app: &App, frame: &mut Frame) {
 }
 
 fn render_token_input(app: &App, frame: &mut Frame, auth_url: String) {
-    let area = centered_rect(70, 14, frame.area());
+    let term = frame.area();
+    let width = term.width.saturating_sub(4).max(40);
+    let area = centered_rect(width, 16, term);
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan))
         .title(" bankai - Login ");
 
+    let inner_width = (width.saturating_sub(2)) as usize;
+
     let mut lines = vec![
         Line::from(""),
         Line::from("1. Open this URL in your browser:"),
         Line::from(""),
-        Line::styled(auth_url, Style::default().fg(Color::Green)),
-        Line::from(""),
-        Line::from("2. Authorize, then copy the token from the URL"),
-        Line::from(""),
-        Line::from("3. Paste your access token below and press Enter:"),
-        Line::from(""),
     ];
+
+    for chunk in auth_url.as_bytes().chunks(inner_width) {
+        let s = std::str::from_utf8(chunk).unwrap_or("");
+        lines.push(Line::styled(s.to_string(), Style::default().fg(Color::Green)));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from("2. Authorize, then copy the token from the URL"));
+    lines.push(Line::from(""));
+    lines.push(Line::from("3. Paste your access token below and press Enter:"));
+    lines.push(Line::from(""));
 
     let input_display = if app.token_input.is_empty() {
         Line::styled(
