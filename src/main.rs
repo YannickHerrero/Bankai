@@ -1,5 +1,6 @@
 mod app;
 mod auth;
+mod token;
 mod ui;
 
 use std::time::Duration;
@@ -10,6 +11,14 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 #[tokio::main]
 async fn main() {
     let mut app = App::new();
+
+    if let Ok(config) = token::load_config() {
+        if let Some(saved_token) = config.access_token {
+            app.token = Some(saved_token);
+            app.screen = app::AppScreen::Dashboard;
+        }
+    }
+
     let mut terminal = ratatui::init();
 
     while app.running {
