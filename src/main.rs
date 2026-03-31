@@ -19,6 +19,7 @@ enum AppMessage {
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenvy::dotenv();
     let mut app = App::new();
     let (tx, mut rx) = mpsc::unbounded_channel::<AppMessage>();
 
