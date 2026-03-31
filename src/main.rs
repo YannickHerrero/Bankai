@@ -115,26 +115,35 @@ async fn main() {
                             app.status_message = None;
                         }
                         KeyCode::Enter => {
-                            let token = app.token_input.trim().to_string();
-                            if token.is_empty() {
-                                app.status_message = Some("Token cannot be empty".into());
+                            let code = app.token_input.trim().to_string();
+                            if code.is_empty() {
+                                app.status_message = Some("Code cannot be empty".into());
                             } else {
                                 app.loading = true;
-                                app.status_message = Some("Verifying token...".into());
+                                app.status_message = Some("Exchanging code for token...".into());
                                 app.token_input.clear();
 
                                 let tx = tx.clone();
-                                let token_clone = token.clone();
                                 tokio::spawn(async move {
+                                    let token_response = match auth::exchange_code(&code).await {
+                                        Ok(t) => t,
+                                        Err(e) => {
+                                            let _ = tx.send(AppMessage::AuthError(e.to_string()));
+                                            return;
+                                        }
+                                    };
+
+                                    let access_token = token_response.access_token;
+
                                     let _ = token::save_config(&token::Config {
-                                        access_token: Some(token_clone.clone()),
+                                        access_token: Some(access_token.clone()),
                                     });
 
-                                    let client = api::AniListClient::new(token_clone.clone());
+                                    let client = api::AniListClient::new(access_token.clone());
                                     match client.get_viewer().await {
                                         Ok(viewer) => {
                                             let _ = tx.send(AppMessage::AuthSuccess {
-                                                token: token_clone,
+                                                token: access_token,
                                                 username: viewer.name,
                                             });
                                         }
