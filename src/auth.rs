@@ -45,9 +45,13 @@ pub async fn exchange_code(code: &str) -> Result<TokenResponse, AuthError> {
 
     let client = reqwest::Client::new();
 
+    let client_id_num: u64 = client_id
+        .parse()
+        .map_err(|_| AuthError::TokenDeserialize("BANKAI_CLIENT_ID is not a number".into()))?;
+
     let body = serde_json::json!({
         "grant_type": "authorization_code",
-        "client_id": client_id,
+        "client_id": client_id_num,
         "client_secret": client_secret,
         "redirect_uri": REDIRECT_URI,
         "code": code,
