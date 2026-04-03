@@ -1,4 +1,4 @@
-use crate::api::{ListActivity, MediaListEntry, SearchMedia};
+use crate::api::{ListActivity, MediaListEntry, SearchMedia, UserStatistics};
 
 pub enum AppScreen {
     Login,
@@ -122,6 +122,30 @@ impl DashboardSection {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum StatsSection {
+    Overview,
+    ScoreDistribution,
+    TopGenres,
+    Formats,
+}
+
+impl StatsSection {
+    pub fn navigate(self, direction: Direction) -> Self {
+        match (self, direction) {
+            (Self::Overview, Direction::Right) => Self::ScoreDistribution,
+            (Self::Overview, Direction::Down) => Self::TopGenres,
+            (Self::ScoreDistribution, Direction::Left) => Self::Overview,
+            (Self::ScoreDistribution, Direction::Down) => Self::Formats,
+            (Self::TopGenres, Direction::Right) => Self::Formats,
+            (Self::TopGenres, Direction::Up) => Self::Overview,
+            (Self::Formats, Direction::Left) => Self::TopGenres,
+            (Self::Formats, Direction::Up) => Self::ScoreDistribution,
+            _ => self,
+        }
+    }
+}
+
 pub struct App {
     pub screen: AppScreen,
     pub running: bool,
@@ -141,6 +165,11 @@ pub struct App {
     pub page: Page,
     pub page_selector: Option<PageSelectorState>,
     pub search: SearchState,
+    pub stats_data: Option<UserStatistics>,
+    pub stats_section: StatsSection,
+    pub stats_overview_scroll: usize,
+    pub stats_genres_scroll: usize,
+    pub stats_formats_scroll: usize,
 }
 
 impl App {
@@ -164,6 +193,11 @@ impl App {
             page: Page::Dashboard,
             page_selector: None,
             search: SearchState::new(),
+            stats_data: None,
+            stats_section: StatsSection::Overview,
+            stats_overview_scroll: 0,
+            stats_genres_scroll: 0,
+            stats_formats_scroll: 0,
         }
     }
 
