@@ -179,18 +179,67 @@ fn render_calendar(app: &App, frame: &mut Frame, area: Rect) {
     frame.render_stateful_widget(list, area, &mut state);
 }
 
+fn relative_time(timestamp: i64) -> String {
+    let now = Local::now().timestamp();
+    let diff = now - timestamp;
+    if diff < 60 {
+        format!("{}s ago", diff)
+    } else if diff < 3600 {
+        format!("{}m ago", diff / 60)
+    } else if diff < 86400 {
+        format!("{}h ago", diff / 3600)
+    } else {
+        format!("{}d ago", diff / 86400)
+    }
+}
+
 fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(section_style(app, DashboardSection::Updates))
         .title(" Last Updates ");
 
-    let text = if app.recent_activity.is_empty() {
-        "No recent activity".to_string()
-    } else {
-        format!("{} activities", app.recent_activity.len())
-    };
+    if app.recent_activity.is_empty() {
+        let paragraph = Paragraph::new("No recent activity").block(block);
+        frame.render_widget(paragraph, area);
+        return;
+    }
 
-    let paragraph = Paragraph::new(text).block(block);
-    frame.render_widget(paragraph, area);
+    let items: Vec<ListItem> = app
+        .recent_activity
+        .iter()
+        .map(|activity| {
+            let progress_str = activity
+                .progress
+                .as_ref()
+                .map(|p| format!(" {p} of"))
+                .unwrap_or_default();
+            let title = &activity.media.title.romaji;
+            let ago = relative_time(activity.created_at);
+
+            let line = Line::from(vec![
+                Span::styled(
+                    format!(" {}{} {title}", activity.status, progress_str),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("  · {ago}"),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let mut state = ListState::default();
+    state.select(Some(app.updates_scroll));
+    frame.render_stateful_widget(list, area, &mut state);
 }
