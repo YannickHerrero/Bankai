@@ -584,9 +584,7 @@ async fn main() {
                                             }
                                         }
                                         KeyCode::Esc => {
-                                            if !app.search.results.is_empty() {
-                                                app.search.focus = SearchFocus::Results;
-                                            }
+                                            app.search.focus = SearchFocus::Results;
                                         }
                                         _ => {}
                                     },
