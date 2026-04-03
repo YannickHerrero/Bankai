@@ -4,6 +4,47 @@ use serde::Deserialize;
 
 const ANILIST_GRAPHQL_URL: &str = "https://graphql.anilist.co";
 
+// --- Domain models ---
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct MediaTitle {
+    pub romaji: String,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct NextAiringEpisode {
+    #[serde(rename = "airingAt")]
+    pub airing_at: i64,
+    pub episode: i32,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Media {
+    pub id: i64,
+    pub title: MediaTitle,
+    pub episodes: Option<i32>,
+    #[serde(rename = "nextAiringEpisode")]
+    pub next_airing_episode: Option<NextAiringEpisode>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct MediaListEntry {
+    pub media: Media,
+    pub progress: i32,
+    pub score: f64,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct ListActivity {
+    pub status: String,
+    pub progress: Option<String>,
+    pub media: Media,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+// --- API response types ---
+
 #[derive(Deserialize)]
 pub struct Viewer {
     pub id: i64,
