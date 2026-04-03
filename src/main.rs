@@ -228,23 +228,7 @@ async fn main() {
                         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                         match key.code {
                             KeyCode::Char('q') => app.quit(),
-                            // Panel navigation: hjkl or Shift+Arrow
-                            KeyCode::Char('h') => {
-                                app.dashboard_section =
-                                    app.dashboard_section.navigate(Direction::Left);
-                            }
-                            KeyCode::Char('l') => {
-                                app.dashboard_section =
-                                    app.dashboard_section.navigate(Direction::Right);
-                            }
-                            KeyCode::Char('j') => {
-                                app.dashboard_section =
-                                    app.dashboard_section.navigate(Direction::Down);
-                            }
-                            KeyCode::Char('k') => {
-                                app.dashboard_section =
-                                    app.dashboard_section.navigate(Direction::Up);
-                            }
+                            // Panel navigation: Shift+Arrow only
                             KeyCode::Left if shift => {
                                 app.dashboard_section =
                                     app.dashboard_section.navigate(Direction::Left);
@@ -261,36 +245,43 @@ async fn main() {
                                 app.dashboard_section =
                                     app.dashboard_section.navigate(Direction::Up);
                             }
-                            // Scroll within section: plain arrows
-                            KeyCode::Down => match app.dashboard_section {
-                                DashboardSection::Watching => {
-                                    if app.watching_scroll + 1 < app.watching_list.len() {
-                                        app.watching_scroll += 1;
+                            // Scroll within section: hjkl or plain arrows
+                            KeyCode::Char('j') | KeyCode::Down => {
+                                match app.dashboard_section {
+                                    DashboardSection::Watching => {
+                                        if app.watching_scroll + 1 < app.watching_list.len()
+                                        {
+                                            app.watching_scroll += 1;
+                                        }
+                                    }
+                                    DashboardSection::Calendar => {
+                                        app.calendar_scroll += 1;
+                                    }
+                                    DashboardSection::Updates => {
+                                        if app.updates_scroll + 1
+                                            < app.recent_activity.len()
+                                        {
+                                            app.updates_scroll += 1;
+                                        }
                                     }
                                 }
-                                DashboardSection::Calendar => {
-                                    app.calendar_scroll += 1;
-                                }
-                                DashboardSection::Updates => {
-                                    if app.updates_scroll + 1 < app.recent_activity.len() {
-                                        app.updates_scroll += 1;
+                            }
+                            KeyCode::Char('k') | KeyCode::Up => {
+                                match app.dashboard_section {
+                                    DashboardSection::Watching => {
+                                        app.watching_scroll =
+                                            app.watching_scroll.saturating_sub(1);
+                                    }
+                                    DashboardSection::Calendar => {
+                                        app.calendar_scroll =
+                                            app.calendar_scroll.saturating_sub(1);
+                                    }
+                                    DashboardSection::Updates => {
+                                        app.updates_scroll =
+                                            app.updates_scroll.saturating_sub(1);
                                     }
                                 }
-                            },
-                            KeyCode::Up => match app.dashboard_section {
-                                DashboardSection::Watching => {
-                                    app.watching_scroll =
-                                        app.watching_scroll.saturating_sub(1);
-                                }
-                                DashboardSection::Calendar => {
-                                    app.calendar_scroll =
-                                        app.calendar_scroll.saturating_sub(1);
-                                }
-                                DashboardSection::Updates => {
-                                    app.updates_scroll =
-                                        app.updates_scroll.saturating_sub(1);
-                                }
-                            },
+                            }
                             _ => {}
                         }
                     },
