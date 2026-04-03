@@ -214,7 +214,7 @@ impl AniListClient {
         let query = r#"
             query ($userId: Int) {
                 Page(perPage: 20) {
-                    activities(userId: $userId, type: ANIME_LIST, sort: ID_DESC) {
+                    activities(userId: $userId, sort: ID_DESC) {
                         ... on ListActivity {
                             status
                             progress
