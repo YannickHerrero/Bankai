@@ -52,7 +52,9 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
     let items: Vec<ListItem> = app
         .watching_list
         .iter()
-        .map(|entry| {
+        .enumerate()
+        .map(|(i, entry)| {
+            let selected = i == app.watching_scroll;
             let title = &entry.media.title.romaji;
             let total = entry
                 .media
@@ -64,6 +66,8 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
             } else {
                 String::new()
             };
+            let secondary_color = if selected { Color::Gray } else { Color::DarkGray };
+            let score_color = if selected { Color::Yellow } else { Color::Yellow };
             let line = Line::from(vec![
                 Span::styled(
                     format!(" {title}"),
@@ -71,9 +75,9 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
                 ),
                 Span::styled(
                     format!("  ({}/{})", entry.progress, total),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(secondary_color),
                 ),
-                Span::styled(score_str, Style::default().fg(Color::Yellow)),
+                Span::styled(score_str, Style::default().fg(score_color)),
             ]);
             ListItem::new(line)
         })
@@ -146,6 +150,7 @@ fn render_calendar(app: &App, frame: &mut Frame, area: Rect) {
     }
 
     let mut items: Vec<ListItem> = Vec::new();
+    let mut item_idx: usize = 0;
     for (i, day_shows) in by_day.iter().enumerate() {
         let is_today = WEEKDAYS[i] == today_weekday;
         let day_style = if is_today {
@@ -157,18 +162,25 @@ fn render_calendar(app: &App, frame: &mut Frame, area: Rect) {
             format!(" {}", DAY_NAMES[i]),
             day_style,
         ))));
+        item_idx += 1;
 
         if day_shows.is_empty() {
+            let selected = item_idx == app.calendar_scroll;
+            let color = if selected { Color::Gray } else { Color::DarkGray };
             items.push(ListItem::new(Line::from(Span::styled(
                 "   --",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(color),
             ))));
+            item_idx += 1;
         } else {
             for (label, time) in day_shows {
+                let selected = item_idx == app.calendar_scroll;
+                let time_color = if selected { Color::Gray } else { Color::DarkGray };
                 items.push(ListItem::new(Line::from(vec![
                     Span::styled(format!("   {label}"), Style::default().fg(Color::White)),
-                    Span::styled(format!("  {time}"), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("  {time}"), Style::default().fg(time_color)),
                 ])));
+                item_idx += 1;
             }
         }
     }
@@ -208,7 +220,9 @@ fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
     let items: Vec<ListItem> = app
         .recent_activity
         .iter()
-        .map(|activity| {
+        .enumerate()
+        .map(|(i, activity)| {
+            let selected = i == app.updates_scroll;
             let progress_str = activity
                 .progress
                 .as_ref()
@@ -216,6 +230,7 @@ fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
                 .unwrap_or_default();
             let title = &activity.media.title.romaji;
             let ago = relative_time(activity.created_at);
+            let secondary_color = if selected { Color::Gray } else { Color::DarkGray };
 
             let line = Line::from(vec![
                 Span::styled(
@@ -224,7 +239,7 @@ fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
                 ),
                 Span::styled(
                     format!("  · {ago}"),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(secondary_color),
                 ),
             ]);
             ListItem::new(line)
