@@ -83,6 +83,64 @@ pub struct ListActivity {
     pub created_at: i64,
 }
 
+// --- Stats models ---
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct UserStatistics {
+    pub anime: AnimeStatistics,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct AnimeStatistics {
+    pub count: i32,
+    #[serde(rename = "meanScore")]
+    pub mean_score: f64,
+    #[serde(rename = "standardDeviation")]
+    pub standard_deviation: f64,
+    #[serde(rename = "minutesWatched")]
+    pub minutes_watched: i64,
+    #[serde(rename = "episodesWatched")]
+    pub episodes_watched: i32,
+    pub statuses: Vec<StatusStatistic>,
+    pub genres: Vec<GenreStatistic>,
+    pub scores: Vec<ScoreStatistic>,
+    pub formats: Vec<FormatStatistic>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct StatusStatistic {
+    pub status: String,
+    pub count: i32,
+    #[serde(rename = "meanScore")]
+    pub mean_score: f64,
+    #[serde(rename = "minutesWatched")]
+    pub minutes_watched: i64,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct GenreStatistic {
+    pub genre: String,
+    pub count: i32,
+    #[serde(rename = "meanScore")]
+    pub mean_score: f64,
+    #[serde(rename = "minutesWatched")]
+    pub minutes_watched: i64,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct ScoreStatistic {
+    pub score: i32,
+    pub count: i32,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct FormatStatistic {
+    pub format: String,
+    pub count: i32,
+    #[serde(rename = "meanScore")]
+    pub mean_score: f64,
+}
+
 // --- Search models ---
 
 #[derive(Deserialize, Clone, Debug)]
@@ -229,6 +287,22 @@ struct DeleteMediaListEntryData {
 #[derive(Deserialize)]
 struct DeleteMediaListResponse {
     data: DeleteMediaListEntryData,
+}
+
+#[derive(Deserialize)]
+struct UserStatsUser {
+    statistics: UserStatistics,
+}
+
+#[derive(Deserialize)]
+struct UserStatsData {
+    #[serde(rename = "User")]
+    user: UserStatsUser,
+}
+
+#[derive(Deserialize)]
+struct UserStatsResponse {
+    data: UserStatsData,
 }
 
 pub struct AniListClient {
@@ -480,6 +554,56 @@ impl AniListClient {
 
         let entry = parsed.data.save_media_list_entry;
         Ok((entry.id, entry.status))
+    }
+
+    pub async fn get_user_statistics(&self, user_id: i64) -> Result<UserStatistics, ApiError> {
+        let query = r#"
+            query ($userId: Int) {
+                User(id: $userId) {
+                    statistics {
+                        anime {
+                            count
+                            meanScore
+                            standardDeviation
+                            minutesWatched
+                            episodesWatched
+                            statuses(sort: COUNT_DESC) {
+                                status count meanScore minutesWatched
+                            }
+                            genres(sort: COUNT_DESC, limit: 10) {
+                                genre count meanScore minutesWatched
+                            }
+                            scores(sort: MEAN_SCORE) {
+                                score count
+                            }
+                            formats(sort: COUNT_DESC) {
+                                format count meanScore
+                            }
+                        }
+                    }
+                }
+            }
+        "#;
+
+        let body = serde_json::json!({ "query": query, "variables": { "userId": user_id } });
+
+        let response = self
+            .http
+            .post(ANILIST_GRAPHQL_URL)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(ApiError::Network)?;
+
+        let text = response.text().await.map_err(ApiError::Network)?;
+
+        let parsed: UserStatsResponse = serde_json::from_str(&text)
+            .map_err(|e| ApiError::Deserialize(format!("{e}: {text}")))?;
+
+        Ok(parsed.data.user.statistics)
     }
 
     pub async fn delete_media_list_entry(&self, entry_id: i64) -> Result<bool, ApiError> {
