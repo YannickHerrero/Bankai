@@ -551,7 +551,6 @@ async fn main() {
                                                     .media_type
                                                     .api_value()
                                                     .to_string();
-                                                let user_id = app.user_id.unwrap_or(0);
                                                 let token = app.token.clone().unwrap();
                                                 let tx = tx.clone();
                                                 tokio::spawn(async move {
@@ -560,7 +559,6 @@ async fn main() {
                                                         .search_media(
                                                             &query,
                                                             &media_type,
-                                                            user_id,
                                                         )
                                                         .await
                                                     {

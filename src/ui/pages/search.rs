@@ -113,6 +113,8 @@ fn render_empty_body(app: &App, frame: &mut Frame, area: Rect) {
         .border_style(Style::default().fg(Color::DarkGray))
         .title(" Results ");
 
+    let mut lines = Vec::new();
+
     let msg = if app.search.searching {
         "Searching..."
     } else if app.search.query.is_empty() {
@@ -121,14 +123,25 @@ fn render_empty_body(app: &App, frame: &mut Frame, area: Rect) {
         "No results found"
     };
 
-    let text = Paragraph::new(Line::from(Span::styled(
+    lines.push(Line::from(Span::styled(
         msg,
         Style::default().fg(Color::DarkGray),
-    )))
-    .block(block)
-    .alignment(ratatui::layout::Alignment::Center);
+    )));
 
-    let popup = centered_rect(area.width.min(50), 3, area);
+    if let Some(ref err) = app.status_message {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            err.clone(),
+            Style::default().fg(Color::Yellow),
+        )));
+    }
+
+    let height = lines.len() as u16 + 2;
+    let text = Paragraph::new(lines)
+        .block(block)
+        .alignment(ratatui::layout::Alignment::Center);
+
+    let popup = centered_rect(area.width.min(60), height, area);
     frame.render_widget(text, popup);
 }
 

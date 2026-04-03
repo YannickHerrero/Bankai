@@ -396,10 +396,9 @@ impl AniListClient {
         &self,
         search: &str,
         media_type: &str,
-        user_id: i64,
     ) -> Result<Vec<SearchMedia>, ApiError> {
         let query = r#"
-            query ($search: String, $type: MediaType, $userId: Int) {
+            query ($search: String, $type: MediaType) {
                 Page(page: 1, perPage: 20) {
                     media(search: $search, type: $type) {
                         id
@@ -427,7 +426,7 @@ impl AniListClient {
 
         let body = serde_json::json!({
             "query": query,
-            "variables": { "search": search, "type": media_type, "userId": user_id }
+            "variables": { "search": search, "type": media_type }
         });
 
         let response = self
