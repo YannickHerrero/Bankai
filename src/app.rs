@@ -74,6 +74,7 @@ pub struct App {
     pub updates_scroll: usize,
     pub calendar_scroll: usize,
     pub page: Page,
+    pub page_selector: Option<PageSelectorState>,
 }
 
 impl App {
@@ -95,10 +96,68 @@ impl App {
             updates_scroll: 0,
             calendar_scroll: 0,
             page: Page::Dashboard,
+            page_selector: None,
         }
     }
 
     pub fn quit(&mut self) {
         self.running = false;
     }
+}
+
+pub struct PageSelectorState {
+    pub query: String,
+    pub selected: usize,
+    pub filtered: Vec<Page>,
+}
+
+impl PageSelectorState {
+    pub fn new() -> Self {
+        Self {
+            query: String::new(),
+            selected: 0,
+            filtered: Page::ALL.to_vec(),
+        }
+    }
+
+    pub fn update_filter(&mut self) {
+        self.filtered = Page::ALL
+            .iter()
+            .copied()
+            .filter(|p| fuzzy_matches(&self.query, p.label()))
+            .collect();
+        if self.selected >= self.filtered.len() {
+            self.selected = self.filtered.len().saturating_sub(1);
+        }
+    }
+
+    pub fn move_up(&mut self) {
+        if !self.filtered.is_empty() {
+            self.selected = if self.selected == 0 {
+                self.filtered.len() - 1
+            } else {
+                self.selected - 1
+            };
+        }
+    }
+
+    pub fn move_down(&mut self) {
+        if !self.filtered.is_empty() {
+            self.selected = (self.selected + 1) % self.filtered.len();
+        }
+    }
+
+    pub fn selected_page(&self) -> Option<Page> {
+        self.filtered.get(self.selected).copied()
+    }
+}
+
+fn fuzzy_matches(query: &str, haystack: &str) -> bool {
+    let mut haystack_chars = haystack.chars().flat_map(|c| c.to_lowercase());
+    for qc in query.chars().flat_map(|c| c.to_lowercase()) {
+        if haystack_chars.find(|&hc| hc == qc).is_none() {
+            return false;
+        }
+    }
+    true
 }

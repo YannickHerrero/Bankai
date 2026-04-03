@@ -7,7 +7,7 @@ mod ui;
 use std::time::Duration;
 
 use api::{ListActivity, MediaListEntry};
-use app::{App, AppScreen, DashboardSection, Direction, LoginState, Page};
+use app::{App, AppScreen, DashboardSection, Direction, LoginState, Page, PageSelectorState};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use tokio::sync::mpsc;
 
@@ -147,6 +147,45 @@ async fn main() {
         if event::poll(Duration::from_millis(16)).expect("failed to poll events") {
             if let Event::Key(key) = event::read().expect("failed to read event") {
                 if key.kind != KeyEventKind::Press {
+                    continue;
+                }
+
+                // Page selector popup captures all input when open
+                if let Some(ref mut selector) = app.page_selector {
+                    match key.code {
+                        KeyCode::Esc => {
+                            app.page_selector = None;
+                        }
+                        KeyCode::Enter => {
+                            if let Some(page) = selector.selected_page() {
+                                app.page = page;
+                            }
+                            app.page_selector = None;
+                        }
+                        KeyCode::Up => {
+                            selector.move_up();
+                        }
+                        KeyCode::Down | KeyCode::Tab => {
+                            selector.move_down();
+                        }
+                        KeyCode::Char(c) => {
+                            selector.query.push(c);
+                            selector.update_filter();
+                        }
+                        KeyCode::Backspace => {
+                            selector.query.pop();
+                            selector.update_filter();
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
+                // Space opens page selector on authenticated screens
+                if matches!(app.screen, AppScreen::Authenticated)
+                    && key.code == KeyCode::Char(' ')
+                {
+                    app.page_selector = Some(PageSelectorState::new());
                     continue;
                 }
 
