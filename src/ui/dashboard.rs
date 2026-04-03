@@ -67,7 +67,6 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
                 String::new()
             };
             let secondary_color = if selected { Color::Gray } else { Color::DarkGray };
-            let score_color = if selected { Color::Yellow } else { Color::Yellow };
             let line = Line::from(vec![
                 Span::styled(
                     format!(" {title}"),
@@ -77,7 +76,7 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
                     format!("  ({}/{})", entry.progress, total),
                     Style::default().fg(secondary_color),
                 ),
-                Span::styled(score_str, Style::default().fg(score_color)),
+                Span::styled(score_str, Style::default().fg(secondary_color)),
             ]);
             ListItem::new(line)
         })
