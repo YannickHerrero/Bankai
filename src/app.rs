@@ -1,4 +1,4 @@
-use crate::api::{ListActivity, MediaListEntry};
+use crate::api::{ListActivity, MediaListEntry, SearchMedia};
 
 pub enum AppScreen {
     Login,
@@ -21,6 +21,78 @@ impl Page {
             Page::Search => "Search",
             Page::Stats => "Stats",
         }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SearchMediaType {
+    Anime,
+    Manga,
+}
+
+impl SearchMediaType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Anime => "Anime",
+            Self::Manga => "Manga",
+        }
+    }
+
+    pub fn api_value(&self) -> &'static str {
+        match self {
+            Self::Anime => "ANIME",
+            Self::Manga => "MANGA",
+        }
+    }
+
+    pub fn toggle(&self) -> Self {
+        match self {
+            Self::Anime => Self::Manga,
+            Self::Manga => Self::Anime,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SearchFocus {
+    Input,
+    Results,
+    Detail,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SearchPopup {
+    StatusPicker { selected: usize },
+    RemoveConfirm { confirm_selected: bool },
+}
+
+pub struct SearchState {
+    pub query: String,
+    pub media_type: SearchMediaType,
+    pub focus: SearchFocus,
+    pub results: Vec<SearchMedia>,
+    pub result_scroll: usize,
+    pub detail_scroll: usize,
+    pub searching: bool,
+    pub popup: Option<SearchPopup>,
+}
+
+impl SearchState {
+    pub fn new() -> Self {
+        Self {
+            query: String::new(),
+            media_type: SearchMediaType::Anime,
+            focus: SearchFocus::Input,
+            results: Vec::new(),
+            result_scroll: 0,
+            detail_scroll: 0,
+            searching: false,
+            popup: None,
+        }
+    }
+
+    pub fn selected_media(&self) -> Option<&SearchMedia> {
+        self.results.get(self.result_scroll)
     }
 }
 
@@ -75,6 +147,7 @@ pub struct App {
     pub calendar_scroll: usize,
     pub page: Page,
     pub page_selector: Option<PageSelectorState>,
+    pub search: SearchState,
 }
 
 impl App {
@@ -97,6 +170,7 @@ impl App {
             calendar_scroll: 0,
             page: Page::Dashboard,
             page_selector: None,
+            search: SearchState::new(),
         }
     }
 
