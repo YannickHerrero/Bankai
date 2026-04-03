@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use api::{ListActivity, MediaListEntry};
 use app::{App, AppScreen, DashboardSection, Direction, LoginState};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use tokio::sync::mpsc;
 
 enum AppMessage {
@@ -224,50 +224,75 @@ async fn main() {
                         }
                         _ => {}
                     },
-                    (AppScreen::Dashboard, _) => match key.code {
-                        KeyCode::Char('q') => app.quit(),
-                        KeyCode::Char('h') | KeyCode::Left => {
-                            app.dashboard_section =
-                                app.dashboard_section.navigate(Direction::Left);
-                        }
-                        KeyCode::Char('l') | KeyCode::Right => {
-                            app.dashboard_section =
-                                app.dashboard_section.navigate(Direction::Right);
-                        }
-                        KeyCode::Char('j') | KeyCode::Down => match app.dashboard_section {
-                            DashboardSection::Watching => {
-                                if app.watching_scroll + 1 < app.watching_list.len() {
-                                    app.watching_scroll += 1;
+                    (AppScreen::Dashboard, _) => {
+                        let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+                        match key.code {
+                            KeyCode::Char('q') => app.quit(),
+                            // Panel navigation: hjkl or Shift+Arrow
+                            KeyCode::Char('h') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Left);
+                            }
+                            KeyCode::Char('l') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Right);
+                            }
+                            KeyCode::Char('j') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Down);
+                            }
+                            KeyCode::Char('k') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Up);
+                            }
+                            KeyCode::Left if shift => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Left);
+                            }
+                            KeyCode::Right if shift => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Right);
+                            }
+                            KeyCode::Down if shift => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Down);
+                            }
+                            KeyCode::Up if shift => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Up);
+                            }
+                            // Scroll within section: plain arrows
+                            KeyCode::Down => match app.dashboard_section {
+                                DashboardSection::Watching => {
+                                    if app.watching_scroll + 1 < app.watching_list.len() {
+                                        app.watching_scroll += 1;
+                                    }
                                 }
-                            }
-                            DashboardSection::Calendar => {
-                                app.calendar_scroll += 1;
-                            }
-                            DashboardSection::Updates => {
-                                if app.updates_scroll + 1 < app.recent_activity.len() {
-                                    app.updates_scroll += 1;
+                                DashboardSection::Calendar => {
+                                    app.calendar_scroll += 1;
                                 }
-                            }
-                        },
-                        KeyCode::Char('k') | KeyCode::Up => match app.dashboard_section {
-                            DashboardSection::Watching => {
-                                app.watching_scroll = app.watching_scroll.saturating_sub(1);
-                            }
-                            DashboardSection::Calendar => {
-                                app.calendar_scroll = app.calendar_scroll.saturating_sub(1);
-                            }
-                            DashboardSection::Updates => {
-                                app.updates_scroll = app.updates_scroll.saturating_sub(1);
-                            }
-                        },
-                        KeyCode::Tab => {
-                            app.dashboard_section = match app.dashboard_section {
-                                DashboardSection::Watching => DashboardSection::Calendar,
-                                DashboardSection::Calendar => DashboardSection::Updates,
-                                DashboardSection::Updates => DashboardSection::Watching,
-                            };
+                                DashboardSection::Updates => {
+                                    if app.updates_scroll + 1 < app.recent_activity.len() {
+                                        app.updates_scroll += 1;
+                                    }
+                                }
+                            },
+                            KeyCode::Up => match app.dashboard_section {
+                                DashboardSection::Watching => {
+                                    app.watching_scroll =
+                                        app.watching_scroll.saturating_sub(1);
+                                }
+                                DashboardSection::Calendar => {
+                                    app.calendar_scroll =
+                                        app.calendar_scroll.saturating_sub(1);
+                                }
+                                DashboardSection::Updates => {
+                                    app.updates_scroll =
+                                        app.updates_scroll.saturating_sub(1);
+                                }
+                            },
+                            _ => {}
                         }
-                        _ => {}
                     },
                 }
             }

@@ -2,7 +2,7 @@ use chrono::{DateTime, Datelike, Local, TimeZone, Weekday};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
 use crate::app::{App, DashboardSection};
@@ -23,19 +23,25 @@ pub fn render(app: &App, frame: &mut Frame) {
     render_updates(app, frame, right[1]);
 }
 
-fn section_style(app: &App, section: DashboardSection) -> Style {
-    if app.dashboard_section == section {
-        Style::default().fg(Color::Cyan)
+fn section_block<'a>(app: &'a App, section: DashboardSection, title: &'a str) -> Block<'a> {
+    let focused = app.dashboard_section == section;
+    if focused {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Thick)
+            .border_style(Style::default().fg(Color::Cyan))
+            .title(title)
     } else {
-        Style::default().fg(Color::DarkGray)
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Plain)
+            .border_style(Style::default().fg(Color::DarkGray))
+            .title(title)
     }
 }
 
 fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(section_style(app, DashboardSection::Watching))
-        .title(" Currently Watching ");
+    let block = section_block(app, DashboardSection::Watching, " Currently Watching ");
 
     if app.watching_list.is_empty() {
         let paragraph = Paragraph::new("No anime in watching list").block(block);
@@ -99,10 +105,7 @@ const WEEKDAYS: [Weekday; 7] = [
 const DAY_NAMES: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 fn render_calendar(app: &App, frame: &mut Frame, area: Rect) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(section_style(app, DashboardSection::Calendar))
-        .title(" Weekly Calendar ");
+    let block = section_block(app, DashboardSection::Calendar, " Weekly Calendar ");
 
     let now = Local::now();
     let today_weekday = now.weekday();
@@ -194,10 +197,7 @@ fn relative_time(timestamp: i64) -> String {
 }
 
 fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(section_style(app, DashboardSection::Updates))
-        .title(" Last Updates ");
+    let block = section_block(app, DashboardSection::Updates, " Last Updates ");
 
     if app.recent_activity.is_empty() {
         let paragraph = Paragraph::new("No recent activity").block(block);
