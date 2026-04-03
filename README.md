@@ -129,4 +129,4 @@ All contributions are appreciated! Whether it's bug reports, feature suggestions
 
 ## License
 
-This project is not yet licensed. See [Choose a License](https://choosealicense.com/) if you'd like to add one.
+This project is licensed under the [MIT License](LICENSE).
