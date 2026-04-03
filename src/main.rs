@@ -6,15 +6,55 @@ mod ui;
 
 use std::time::Duration;
 
+use api::{ListActivity, MediaListEntry};
 use app::{App, AppScreen, LoginState};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use tokio::sync::mpsc;
 
 enum AppMessage {
-    AuthSuccess { token: String, username: String },
+    AuthSuccess {
+        token: String,
+        username: String,
+        user_id: i64,
+    },
     AuthError(String),
-    ViewerLoaded(String),
+    ViewerLoaded {
+        username: String,
+        user_id: i64,
+    },
     ViewerError(String),
+    WatchingListLoaded(Vec<MediaListEntry>),
+    ActivityLoaded(Vec<ListActivity>),
+    DataError(String),
+}
+
+fn spawn_data_fetches(tx: &mpsc::UnboundedSender<AppMessage>, token: String, user_id: i64) {
+    let tx_watch = tx.clone();
+    let token_watch = token.clone();
+    tokio::spawn(async move {
+        let client = api::AniListClient::new(token_watch);
+        match client.get_watching_list(user_id).await {
+            Ok(list) => {
+                let _ = tx_watch.send(AppMessage::WatchingListLoaded(list));
+            }
+            Err(e) => {
+                let _ = tx_watch.send(AppMessage::DataError(e.to_string()));
+            }
+        }
+    });
+
+    let tx_activity = tx.clone();
+    tokio::spawn(async move {
+        let client = api::AniListClient::new(token);
+        match client.get_recent_activity(user_id).await {
+            Ok(activities) => {
+                let _ = tx_activity.send(AppMessage::ActivityLoaded(activities));
+            }
+            Err(e) => {
+                let _ = tx_activity.send(AppMessage::DataError(e.to_string()));
+            }
+        }
+    });
 }
 
 #[tokio::main]
@@ -34,7 +74,10 @@ async fn main() {
                 let client = api::AniListClient::new(saved_token);
                 match client.get_viewer().await {
                     Ok(viewer) => {
-                        let _ = tx.send(AppMessage::ViewerLoaded(viewer.name));
+                        let _ = tx.send(AppMessage::ViewerLoaded {
+                            username: viewer.name,
+                            user_id: viewer.id,
+                        });
                     }
                     Err(e) => {
                         let _ = tx.send(AppMessage::ViewerError(e.to_string()));
@@ -53,20 +96,39 @@ async fn main() {
 
         while let Ok(msg) = rx.try_recv() {
             match msg {
-                AppMessage::AuthSuccess { token, username } => {
-                    app.token = Some(token);
+                AppMessage::AuthSuccess {
+                    token,
+                    username,
+                    user_id,
+                } => {
+                    app.token = Some(token.clone());
                     app.username = Some(username);
+                    app.user_id = Some(user_id);
                     app.screen = AppScreen::Dashboard;
                     app.loading = false;
                     app.status_message = None;
+                    spawn_data_fetches(&tx, token, user_id);
                 }
                 AppMessage::AuthError(err) => {
                     app.loading = false;
                     app.status_message = Some(err);
                 }
-                AppMessage::ViewerLoaded(username) => {
+                AppMessage::ViewerLoaded { username, user_id } => {
                     app.username = Some(username);
+                    app.user_id = Some(user_id);
                     app.loading = false;
+                    if let Some(ref token) = app.token {
+                        spawn_data_fetches(&tx, token.clone(), user_id);
+                    }
+                }
+                AppMessage::WatchingListLoaded(list) => {
+                    app.watching_list = list;
+                }
+                AppMessage::ActivityLoaded(activities) => {
+                    app.recent_activity = activities;
+                }
+                AppMessage::DataError(err) => {
+                    app.status_message = Some(err);
                 }
                 AppMessage::ViewerError(err) => {
                     app.token = None;
@@ -145,6 +207,7 @@ async fn main() {
                                             let _ = tx.send(AppMessage::AuthSuccess {
                                                 token: access_token,
                                                 username: viewer.name,
+                                                user_id: viewer.id,
                                             });
                                         }
                                         Err(e) => {
