@@ -1,20 +1,10 @@
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
+use super::centered_rect;
 use crate::app::{App, LoginState};
-
-fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
-    let vertical = Layout::vertical([Constraint::Length(height)])
-        .flex(Flex::Center)
-        .split(area);
-    let horizontal = Layout::horizontal([Constraint::Length(width)])
-        .flex(Flex::Center)
-        .split(vertical[0]);
-    horizontal[0]
-}
 
 pub fn render(app: &App, frame: &mut Frame) {
     match &app.login_state {
@@ -26,7 +16,8 @@ pub fn render(app: &App, frame: &mut Frame) {
 }
 
 fn render_prompt(app: &App, frame: &mut Frame) {
-    let area = centered_rect(50, 8, frame.area());
+    let height = if app.status_message.is_some() { 10 } else { 8 };
+    let area = centered_rect(50, height, frame.area());
 
     let block = Block::default()
         .borders(Borders::ALL)

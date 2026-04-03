@@ -1,9 +1,20 @@
 mod login;
 mod pages;
 
+use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::Frame;
 
 use crate::app::{App, AppScreen};
+
+pub(crate) fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
+    let vertical = Layout::vertical([Constraint::Length(height)])
+        .flex(Flex::Center)
+        .split(area);
+    let horizontal = Layout::horizontal([Constraint::Length(width)])
+        .flex(Flex::Center)
+        .split(vertical[0]);
+    horizontal[0]
+}
 
 pub fn render(app: &App, frame: &mut Frame) {
     match app.screen {
