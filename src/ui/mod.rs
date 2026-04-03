@@ -8,6 +8,6 @@ use crate::app::{App, AppScreen};
 pub fn render(app: &App, frame: &mut Frame) {
     match app.screen {
         AppScreen::Login => login::render(app, frame),
-        AppScreen::Dashboard => dashboard::render(app, frame),
+        AppScreen::Authenticated => dashboard::render(app, frame),
     }
 }

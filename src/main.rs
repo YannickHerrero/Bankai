@@ -7,7 +7,7 @@ mod ui;
 use std::time::Duration;
 
 use api::{ListActivity, MediaListEntry};
-use app::{App, AppScreen, DashboardSection, Direction, LoginState};
+use app::{App, AppScreen, DashboardSection, Direction, LoginState, Page};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use tokio::sync::mpsc;
 
@@ -66,7 +66,7 @@ async fn main() {
     if let Ok(config) = token::load_config() {
         if let Some(saved_token) = config.access_token {
             app.token = Some(saved_token.clone());
-            app.screen = AppScreen::Dashboard;
+            app.screen = AppScreen::Authenticated;
             app.loading = true;
 
             let tx = tx.clone();
@@ -104,7 +104,7 @@ async fn main() {
                     app.token = Some(token.clone());
                     app.username = Some(username);
                     app.user_id = Some(user_id);
-                    app.screen = AppScreen::Dashboard;
+                    app.screen = AppScreen::Authenticated;
                     app.loading = false;
                     app.status_message = None;
                     spawn_data_fetches(&tx, token, user_id);
@@ -224,7 +224,7 @@ async fn main() {
                         }
                         _ => {}
                     },
-                    (AppScreen::Dashboard, _) => {
+                    (AppScreen::Authenticated, _) => {
                         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                         match key.code {
                             KeyCode::Char('q') => app.quit(),
