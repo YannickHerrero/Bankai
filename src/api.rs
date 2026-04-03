@@ -20,6 +20,7 @@ pub struct NextAiringEpisode {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Media {
+    #[allow(dead_code)]
     pub id: i64,
     pub title: MediaTitle,
     pub episodes: Option<i32>,
