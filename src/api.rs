@@ -62,6 +62,27 @@ struct GraphQLResponse {
     data: ViewerData,
 }
 
+#[derive(Deserialize)]
+struct MediaListGroup {
+    entries: Vec<MediaListEntry>,
+}
+
+#[derive(Deserialize)]
+struct MediaListCollection {
+    lists: Vec<MediaListGroup>,
+}
+
+#[derive(Deserialize)]
+struct MediaListCollectionData {
+    #[serde(rename = "MediaListCollection")]
+    media_list_collection: MediaListCollection,
+}
+
+#[derive(Deserialize)]
+struct MediaListResponse {
+    data: MediaListCollectionData,
+}
+
 pub struct AniListClient {
     http: reqwest::Client,
     token: String,
@@ -112,5 +133,54 @@ impl AniListClient {
             .map_err(|e| ApiError::Deserialize(format!("{e}: {text}")))?;
 
         Ok(parsed.data.viewer)
+    }
+
+    pub async fn get_watching_list(&self, user_id: i64) -> Result<Vec<MediaListEntry>, ApiError> {
+        let query = r#"
+            query ($userId: Int) {
+                MediaListCollection(userId: $userId, type: ANIME, status: CURRENT) {
+                    lists {
+                        entries {
+                            media {
+                                id
+                                title { romaji }
+                                episodes
+                                nextAiringEpisode { airingAt episode }
+                            }
+                            progress
+                            score
+                        }
+                    }
+                }
+            }
+        "#;
+
+        let body = serde_json::json!({ "query": query, "variables": { "userId": user_id } });
+
+        let response = self
+            .http
+            .post(ANILIST_GRAPHQL_URL)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(ApiError::Network)?;
+
+        let text = response.text().await.map_err(ApiError::Network)?;
+
+        let parsed: MediaListResponse = serde_json::from_str(&text)
+            .map_err(|e| ApiError::Deserialize(format!("{e}: {text}")))?;
+
+        let entries = parsed
+            .data
+            .media_list_collection
+            .lists
+            .into_iter()
+            .flat_map(|group| group.entries)
+            .collect();
+
+        Ok(entries)
     }
 }
