@@ -1,3 +1,5 @@
+use crate::api::{ListActivity, MediaListEntry};
+
 pub enum AppScreen {
     Login,
     Dashboard,
@@ -6,6 +8,34 @@ pub enum AppScreen {
 pub enum LoginState {
     Prompt,
     WaitingForToken { auth_url: String },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DashboardSection {
+    Watching,
+    Calendar,
+    Updates,
+}
+
+#[derive(Clone, Copy)]
+pub enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl DashboardSection {
+    pub fn navigate(self, direction: Direction) -> Self {
+        match (self, direction) {
+            (Self::Watching, Direction::Right) => Self::Calendar,
+            (Self::Calendar, Direction::Left) => Self::Watching,
+            (Self::Calendar, Direction::Down) => Self::Updates,
+            (Self::Updates, Direction::Left) => Self::Watching,
+            (Self::Updates, Direction::Up) => Self::Calendar,
+            _ => self,
+        }
+    }
 }
 
 pub struct App {
@@ -17,6 +47,13 @@ pub struct App {
     pub loading: bool,
     pub login_state: LoginState,
     pub token_input: String,
+    pub user_id: Option<i64>,
+    pub watching_list: Vec<MediaListEntry>,
+    pub recent_activity: Vec<ListActivity>,
+    pub dashboard_section: DashboardSection,
+    pub watching_scroll: usize,
+    pub updates_scroll: usize,
+    pub calendar_scroll: usize,
 }
 
 impl App {
@@ -30,6 +67,13 @@ impl App {
             loading: false,
             login_state: LoginState::Prompt,
             token_input: String::new(),
+            user_id: None,
+            watching_list: Vec::new(),
+            recent_activity: Vec::new(),
+            dashboard_section: DashboardSection::Watching,
+            watching_scroll: 0,
+            updates_scroll: 0,
+            calendar_scroll: 0,
         }
     }
 
