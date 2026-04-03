@@ -1,3 +1,4 @@
+use chrono::{DateTime, Datelike, Local, TimeZone, Weekday};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -85,14 +86,97 @@ fn render_watching(app: &App, frame: &mut Frame, area: Rect) {
     frame.render_stateful_widget(list, area, &mut state);
 }
 
+const WEEKDAYS: [Weekday; 7] = [
+    Weekday::Mon,
+    Weekday::Tue,
+    Weekday::Wed,
+    Weekday::Thu,
+    Weekday::Fri,
+    Weekday::Sat,
+    Weekday::Sun,
+];
+
+const DAY_NAMES: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
 fn render_calendar(app: &App, frame: &mut Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(section_style(app, DashboardSection::Calendar))
         .title(" Weekly Calendar ");
 
-    let paragraph = Paragraph::new("No shows airing this week").block(block);
-    frame.render_widget(paragraph, area);
+    let now = Local::now();
+    let today_weekday = now.weekday();
+    let days_since_monday = today_weekday.num_days_from_monday() as i64;
+    let monday = (now - chrono::Duration::days(days_since_monday))
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let sunday_end = monday + chrono::Duration::days(7);
+
+    let monday_ts = Local.from_local_datetime(&monday).unwrap().timestamp();
+    let sunday_ts = Local.from_local_datetime(&sunday_end).unwrap().timestamp();
+
+    // Group airing shows by weekday
+    let mut by_day: [Vec<(String, String)>; 7] = Default::default();
+
+    for entry in &app.watching_list {
+        if let Some(ref airing) = entry.media.next_airing_episode {
+            if airing.airing_at >= monday_ts && airing.airing_at < sunday_ts {
+                let dt: DateTime<Local> = Local.timestamp_opt(airing.airing_at, 0).unwrap();
+                let day_idx = dt.weekday().num_days_from_monday() as usize;
+                let time_str = dt.format("%H:%M").to_string();
+                let label = format!(
+                    "{} ep.{}",
+                    entry.media.title.romaji, airing.episode
+                );
+                by_day[day_idx].push((label, time_str));
+            }
+        }
+    }
+
+    let has_any = by_day.iter().any(|d| !d.is_empty());
+
+    if !has_any {
+        let paragraph = Paragraph::new("No shows airing this week").block(block);
+        frame.render_widget(paragraph, area);
+        return;
+    }
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (i, day_shows) in by_day.iter().enumerate() {
+        let is_today = WEEKDAYS[i] == today_weekday;
+        let day_style = if is_today {
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+        };
+        items.push(ListItem::new(Line::from(Span::styled(
+            format!(" {}", DAY_NAMES[i]),
+            day_style,
+        ))));
+
+        if day_shows.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                "   --",
+                Style::default().fg(Color::DarkGray),
+            ))));
+        } else {
+            for (label, time) in day_shows {
+                items.push(ListItem::new(Line::from(vec![
+                    Span::styled(format!("   {label}"), Style::default().fg(Color::White)),
+                    Span::styled(format!("  {time}"), Style::default().fg(Color::DarkGray)),
+                ])));
+            }
+        }
+    }
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(Style::default().bg(Color::DarkGray));
+
+    let mut state = ListState::default();
+    state.select(Some(app.calendar_scroll));
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn render_updates(app: &App, frame: &mut Frame, area: Rect) {
