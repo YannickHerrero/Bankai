@@ -110,12 +110,9 @@ pub struct SearchMedia {
     pub average_score: Option<i32>,
     pub episodes: Option<i32>,
     pub chapters: Option<i32>,
-    pub volumes: Option<i32>,
     pub description: Option<String>,
     pub status: Option<String>,
     pub genres: Option<Vec<String>>,
-    #[serde(rename = "meanScore")]
-    pub mean_score: Option<i32>,
     #[serde(rename = "mediaListEntry")]
     pub media_list_entry: Option<UserMediaListEntry>,
 }
@@ -408,11 +405,9 @@ impl AniListClient {
                         averageScore
                         episodes
                         chapters
-                        volumes
                         description(asHtml: false)
                         status
                         genres
-                        meanScore
                         mediaListEntry {
                             id
                             status

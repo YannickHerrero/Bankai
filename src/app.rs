@@ -31,13 +31,6 @@ pub enum SearchMediaType {
 }
 
 impl SearchMediaType {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::Anime => "Anime",
-            Self::Manga => "Manga",
-        }
-    }
-
     pub fn api_value(&self) -> &'static str {
         match self {
             Self::Anime => "ANIME",
