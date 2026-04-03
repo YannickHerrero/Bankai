@@ -125,14 +125,7 @@ src/
 
 ## Contributing
 
-Contributions are welcome! To get started:
-
-1. [Fork](https://github.com/YannickHerrero/Bankai/fork) the repository
-2. Clone your fork (`git clone https://github.com/<your-username>/Bankai.git`)
-3. Create a feature branch (`git checkout -b feature/my-feature`)
-4. Commit your changes (`git commit -m 'Add my feature'`)
-5. Push to your fork (`git push origin feature/my-feature`)
-6. Open a Pull Request against this repository
+All contributions are appreciated! Whether it's bug reports, feature suggestions, or pull requests — feel free to get involved.
 
 ## License
 
