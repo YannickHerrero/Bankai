@@ -6,10 +6,10 @@ mod ui;
 
 use std::time::Duration;
 
-use api::{ListActivity, MediaListEntry, MediaListStatus, SearchMedia, UserMediaListEntry};
+use api::{ListActivity, MediaListEntry, MediaListStatus, SearchMedia, UserMediaListEntry, UserStatistics};
 use app::{
     App, AppScreen, DashboardSection, Direction, LoginState, Page, PageSelectorState, SearchFocus,
-    SearchPopup,
+    SearchPopup, StatsSection,
 };
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use tokio::sync::mpsc;
@@ -41,6 +41,8 @@ enum AppMessage {
     },
     MediaSaveError(String),
     MediaDeleteError(String),
+    StatsLoaded(UserStatistics),
+    StatsError(String),
 }
 
 fn spawn_data_fetches(tx: &mpsc::UnboundedSender<AppMessage>, token: String, user_id: i64) {
@@ -59,14 +61,28 @@ fn spawn_data_fetches(tx: &mpsc::UnboundedSender<AppMessage>, token: String, use
     });
 
     let tx_activity = tx.clone();
+    let token_activity = token.clone();
     tokio::spawn(async move {
-        let client = api::AniListClient::new(token);
+        let client = api::AniListClient::new(token_activity);
         match client.get_recent_activity(user_id).await {
             Ok(activities) => {
                 let _ = tx_activity.send(AppMessage::ActivityLoaded(activities));
             }
             Err(e) => {
                 let _ = tx_activity.send(AppMessage::DataError(e.to_string()));
+            }
+        }
+    });
+
+    let tx_stats = tx.clone();
+    tokio::spawn(async move {
+        let client = api::AniListClient::new(token);
+        match client.get_user_statistics(user_id).await {
+            Ok(stats) => {
+                let _ = tx_stats.send(AppMessage::StatsLoaded(stats));
+            }
+            Err(e) => {
+                let _ = tx_stats.send(AppMessage::StatsError(e.to_string()));
             }
         }
     });
@@ -202,6 +218,12 @@ async fn main() {
                 AppMessage::MediaDeleteError(err) => {
                     app.search.popup = None;
                     app.status_message = Some(format!("Delete failed: {err}"));
+                }
+                AppMessage::StatsLoaded(stats) => {
+                    app.stats_data = Some(stats);
+                }
+                AppMessage::StatsError(err) => {
+                    app.status_message = Some(format!("Stats: {err}"));
                 }
             }
         }
@@ -648,10 +670,76 @@ async fn main() {
                                 }
                             }
                         }
-                        Page::Stats => match key.code {
-                            KeyCode::Char('q') => app.quit(),
-                            _ => {}
-                        },
+                        Page::Stats => {
+                            let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+                            match key.code {
+                                KeyCode::Char('q') => app.quit(),
+                                KeyCode::Char('H') => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Left);
+                                }
+                                KeyCode::Char('L') => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Right);
+                                }
+                                KeyCode::Char('J') => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Down);
+                                }
+                                KeyCode::Char('K') => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Up);
+                                }
+                                KeyCode::Left if shift => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Left);
+                                }
+                                KeyCode::Right if shift => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Right);
+                                }
+                                KeyCode::Down if shift => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Down);
+                                }
+                                KeyCode::Up if shift => {
+                                    app.stats_section =
+                                        app.stats_section.navigate(Direction::Up);
+                                }
+                                KeyCode::Char('j') | KeyCode::Down => {
+                                    match app.stats_section {
+                                        StatsSection::Overview => {
+                                            app.stats_overview_scroll += 1;
+                                        }
+                                        StatsSection::TopGenres => {
+                                            app.stats_genres_scroll += 1;
+                                        }
+                                        StatsSection::Formats => {
+                                            app.stats_formats_scroll += 1;
+                                        }
+                                        StatsSection::ScoreDistribution => {}
+                                    }
+                                }
+                                KeyCode::Char('k') | KeyCode::Up => {
+                                    match app.stats_section {
+                                        StatsSection::Overview => {
+                                            app.stats_overview_scroll =
+                                                app.stats_overview_scroll.saturating_sub(1);
+                                        }
+                                        StatsSection::TopGenres => {
+                                            app.stats_genres_scroll =
+                                                app.stats_genres_scroll.saturating_sub(1);
+                                        }
+                                        StatsSection::Formats => {
+                                            app.stats_formats_scroll =
+                                                app.stats_formats_scroll.saturating_sub(1);
+                                        }
+                                        StatsSection::ScoreDistribution => {}
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
                     },
                 }
             }
