@@ -228,7 +228,23 @@ async fn main() {
                         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                         match key.code {
                             KeyCode::Char('q') => app.quit(),
-                            // Panel navigation: Shift+Arrow only
+                            // Panel navigation: Shift+hjkl or Shift+Arrow
+                            KeyCode::Char('H') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Left);
+                            }
+                            KeyCode::Char('L') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Right);
+                            }
+                            KeyCode::Char('J') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Down);
+                            }
+                            KeyCode::Char('K') => {
+                                app.dashboard_section =
+                                    app.dashboard_section.navigate(Direction::Up);
+                            }
                             KeyCode::Left if shift => {
                                 app.dashboard_section =
                                     app.dashboard_section.navigate(Direction::Left);
