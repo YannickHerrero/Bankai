@@ -83,6 +83,31 @@ struct MediaListResponse {
     data: MediaListCollectionData,
 }
 
+#[derive(Deserialize)]
+struct ActivityUnion {
+    status: Option<String>,
+    progress: Option<String>,
+    media: Option<Media>,
+    #[serde(rename = "createdAt")]
+    created_at: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct ActivitiesPage {
+    activities: Vec<ActivityUnion>,
+}
+
+#[derive(Deserialize)]
+struct ActivityPageData {
+    #[serde(rename = "Page")]
+    page: ActivitiesPage,
+}
+
+#[derive(Deserialize)]
+struct ActivityResponse {
+    data: ActivityPageData,
+}
+
 pub struct AniListClient {
     http: reqwest::Client,
     token: String,
@@ -182,5 +207,62 @@ impl AniListClient {
             .collect();
 
         Ok(entries)
+    }
+
+    pub async fn get_recent_activity(&self, user_id: i64) -> Result<Vec<ListActivity>, ApiError> {
+        let query = r#"
+            query ($userId: Int) {
+                Page(perPage: 20) {
+                    activities(userId: $userId, type: ANIME_LIST, sort: ID_DESC) {
+                        ... on ListActivity {
+                            status
+                            progress
+                            media {
+                                id
+                                title { romaji }
+                                episodes
+                                nextAiringEpisode { airingAt episode }
+                            }
+                            createdAt
+                        }
+                    }
+                }
+            }
+        "#;
+
+        let body = serde_json::json!({ "query": query, "variables": { "userId": user_id } });
+
+        let response = self
+            .http
+            .post(ANILIST_GRAPHQL_URL)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(ApiError::Network)?;
+
+        let text = response.text().await.map_err(ApiError::Network)?;
+
+        let parsed: ActivityResponse = serde_json::from_str(&text)
+            .map_err(|e| ApiError::Deserialize(format!("{e}: {text}")))?;
+
+        let activities = parsed
+            .data
+            .page
+            .activities
+            .into_iter()
+            .filter_map(|a| {
+                Some(ListActivity {
+                    status: a.status?,
+                    progress: a.progress,
+                    media: a.media?,
+                    created_at: a.created_at?,
+                })
+            })
+            .collect();
+
+        Ok(activities)
     }
 }
