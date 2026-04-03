@@ -607,6 +607,8 @@ async fn main() {
                                             if app.search.selected_media().is_some() {
                                                 app.search.focus = SearchFocus::Detail;
                                                 app.search.detail_scroll = 0;
+                                            } else {
+                                                app.search.focus = SearchFocus::Input;
                                             }
                                         }
                                         KeyCode::Esc | KeyCode::Char('/') => {
